@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>كشف حسابك</title><meta name="theme-color" content="#000000">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+:root{--bg:#000;--card:#0d0d10;--line:#25252b;--ink:#f4f4f5;--mute:#9a9aa6;--acc:#22d3ee;--debt:#f87171;--ok:#34d399}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans Arabic',Cairo,Tahoma,sans-serif;display:flex;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 14px 28px}
+.w{width:100%;max-width:520px}.b{display:flex;align-items:center;gap:12px;margin:8px 0 16px}.lg{width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#22d3ee,#0e7490);color:#04222c;display:grid;place-items:center;font-weight:800;font-size:22px}
+.b b{display:block;font-size:18px}.b small{color:var(--mute)}.c{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px}
+.big{font-size:30px;font-weight:800;color:var(--debt);margin:4px 0}.big.z{color:var(--ok)}.m{color:var(--mute);font-size:13px}
+.r{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}.r:first-of-type{border-top:0}.r small{color:var(--mute);display:block}
+.pr{margin-top:10px;padding:10px;border-radius:12px;background:#22d3ee14;border:1px solid #22d3ee33;font-size:14px}
+h2{font-size:15px;margin:0 0 6px}.btn{display:block;text-align:center;margin-top:10px;padding:13px;border-radius:14px;background:var(--acc);color:#04222c;font-weight:700;text-decoration:none}
+.sp{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;margin:30px auto;animation:r .8s linear infinite}@keyframes r{to{transform:rotate(360deg)}}
+</style></head><body><div class="w">
+<div class="b"><div class="lg">ح</div><div><b id="shop">كشف الحساب</b><small id="sub"></small></div></div>
+<div id="box"><div class="c"><div class="sp"></div></div></div></div>
+<script>
+var T=new URLSearchParams(location.search).get('t');
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function money(v,k){return Number(v||0).toLocaleString('en-US')+(k==='USD'?' $':' د.ع')}
+function dd(t){return t?new Date(t).toLocaleDateString('ar-IQ'):''}
+function draw(d){
+  document.getElementById('shop').textContent=d.shop||'كشف الحساب';document.getElementById('sub').textContent=d.tel?'هاتف: '+d.tel:'';
+  var z=String(d.tot&&d.tot.r||'').replace(/[^0-9]/g,'')==='0'||!d.tot.r;
+  var h='<div class="c"><div class="m">كشف حساب</div><h2>'+esc(d.name)+'</h2><div class="m">المتبقي عليك</div><div class="big'+(z?' z':'')+'">'+esc(d.tot&&d.tot.r||'0')+'</div><div class="m">إجمالي الدين: '+esc(d.tot&&d.tot.d||'')+' • المسدَّد: '+esc(d.tot&&d.tot.p||'')+'</div>'+(d.pr?'<div class="pr">📌 موعد التسديد المتفق عليه: <b>'+dd(d.pr)+'</b></div>':'')+'<div class="m" style="margin-top:8px">آخر تحديث: '+new Date(d.upd).toLocaleString('ar-IQ')+'</div></div>';
+  h+='<div class="c"><h2>الفواتير والديون</h2>'+((d.rows||[]).slice().reverse().map(function(x){return '<div class="r"><div>'+esc(x.n)+'<small>'+dd(x.d)+(x.u?' • الاستحقاق '+dd(x.u):'')+'</small></div><div style="text-align:left">'+money(x.a,x.k)+'<small>'+(x.r>0?'متبقي '+money(x.r,x.k):'✓ مسدَّد')+'</small></div></div>'}).join('')||'<div class="m">لا ديون.</div>')+'</div>';
+  h+='<div class="c"><h2>التسديدات</h2>'+((d.pays||[]).map(function(x){return '<div class="r"><span>'+dd(x.d)+'</span><b style="color:var(--ok)">'+money(x.a,x.k)+'</b></div>'}).join('')||'<div class="m">لا تسديدات بعد.</div>')+'</div>';
+  if(d.tel)h+='<a class="btn" href="tel:'+esc(d.tel)+'">📞 اتصل بالمحل</a>';
+  document.getElementById('box').innerHTML=h;
+}
+async function load(){
+  if(!T){document.getElementById('box').innerHTML='<div class="c"><h2>رابط غير صالح</h2></div>';return}
+  try{var d=await firebase.firestore().collection('stmts').doc(T).get();if(!d.exists){document.getElementById('box').innerHTML='<div class="c"><h2>لم نجد هذا الكشف</h2><div class="m">قد يكون الرابط قديماً أو أُلغي. تواصل مع المحل.</div></div>';return}draw(d.data())}
+  catch(e){document.getElementById('box').innerHTML='<div class="c"><h2>تعذّر التحميل</h2><div class="m">تحقق من الاتصال وأعد المحاولة.</div></div>'}
+}
+try{firebase.initializeApp(window.FB_CONFIG);load();setInterval(load,60000)}catch(e){document.getElementById('box').innerHTML='<div class="c"><h2>تعذّر التحميل</h2></div>'}
+</script></body></html>
